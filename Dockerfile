@@ -33,11 +33,15 @@ RUN apt-get install -y apt-utils autoconf automake autotools-dev curl libmpc-dev
         libmpfr-dev libgmp-dev gawk build-essential bison flex texinfo \
     gperf libtool patchutils bc zlib1g-dev git libexpat1-dev
 
+# build iverilog
+RUN git clone https://github.com/steveicarus/iverilog.git && \
+    cd iverilog && \
+    sh autoconf.sh && \
+    ./configure && \
+    make -j$(nproc) && \
+    make install
 
-# Iverilog
-RUN apt-get install -y iverilog
-
-# build
+# build toolchain
 RUN mkdir /opt/riscv32i && \
     git clone https://github.com/riscv/riscv-gnu-toolchain riscv-gnu-toolchain-rv32i && \
     cd riscv-gnu-toolchain-rv32i && \
