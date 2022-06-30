@@ -13,48 +13,56 @@
 # limitations under the License.
 # SPDX-License-Identifier: Apache-2.0
 
-# syntax = docker/dockerfile:1.0-experimental
+# syntax=docker/dockerfile:1
 FROM ubuntu:20.04 AS build
-
-
-ENV CC=/usr/bin/gcc \
-    CPP=/usr/bin/cpp \
-    CXX=/usr/bin/g++
 
 RUN apt update
 
-# General Utils
-RUN DEBIAN_FRONTEND="noninteractive" apt-get -y install tzdata
+# install general utils
+RUN DEBIAN_FRONTEND="noninteractive" \
+    apt install --assume-yes --no-install-recommends tzdata
+RUN apt install --assume-yes --no-install-recommends \
+    git ca-certificates
+    
+# install iverilog dependencies
+RUN apt install --assume-yes --no-install-recommends \
+    make gcc g++ bison flex gperf libreadline6-dev libncurses5-dev autoconf
 
-RUN apt install -y automake autotools-dev bison cmake flex g++ gcc git libpcre3 libpcre3-dev tcl tcl-dev wget zlib1g zlib1g-dev
-
-# Dependencies 
-RUN apt-get install -y apt-utils autoconf automake autotools-dev curl libmpc-dev \
-        libmpfr-dev libgmp-dev gawk build-essential bison flex texinfo \
-    gperf libtool patchutils bc zlib1g-dev git libexpat1-dev
+# fetch iverilog
+RUN git clone https://github.com/steveicarus/iverilog.git
 
 # build iverilog
-RUN git clone https://github.com/steveicarus/iverilog.git && \
-    cd iverilog && \
+RUN cd iverilog && \
     sh autoconf.sh && \
     ./configure && \
     make -j$(nproc) && \
     make install
 
-# build toolchain
-RUN mkdir /opt/riscv32i && \
-    git clone https://github.com/riscv/riscv-gnu-toolchain riscv-gnu-toolchain-rv32i && \
+# install riscv toolchain dependencies
+RUN apt install --assume-yes --no-install-recommends \
+    autoconf automake autotools-dev curl python3 libmpc-dev \
+    libmpfr-dev libgmp-dev gawk build-essential bison flex \
+    texinfo gperf libtool patchutils bc zlib1g-dev libexpat-dev
+
+# fetch riscv toolchain
+RUN git clone https://github.com/riscv/riscv-gnu-toolchain riscv-gnu-toolchain-rv32i && \
     cd riscv-gnu-toolchain-rv32i && \
-    git checkout 411d134 && \
-    git submodule update --init --recursive && \
+    git submodule update --init --recursive
+
+# build riscv toolchain
+RUN cd riscv-gnu-toolchain-rv32i && \
+    mkdir /opt/riscv32i && \
     mkdir build; cd build && \
     ../configure --with-arch=rv32i --prefix=/opt/riscv32i && \
     make -j$(nproc)
 
+FROM ubuntu:20.04
+
+COPY --from=build "/usr/local" "/usr/local"
+COPY --from=build "/opt/riscv32i" "/opt/riscv32i"
+
 ENV GCC_PATH=/opt/riscv32i/bin
 ENV DV_ROOT=/dv_root
-
-RUN apt install -y vim
 
 WORKDIR $DV_ROOT
 
