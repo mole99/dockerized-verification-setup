@@ -26,10 +26,12 @@ RUN apt install --assume-yes --no-install-recommends \
     
 # install iverilog dependencies
 RUN apt install --assume-yes --no-install-recommends \
-    make gcc g++ bison flex gperf libreadline6-dev libncurses5-dev autoconf
+    make gcc g++ bison flex gperf libreadline6-dev libncurses5-dev autoconf zlib1g-dev
 
 # fetch iverilog
-RUN git clone https://github.com/steveicarus/iverilog.git
+RUN git clone https://github.com/steveicarus/iverilog.git && \
+    cd iverilog && \
+    git checkout c7cb13d302e13cac77701045fd7935a9b81b9e89
 
 # build iverilog
 RUN cd iverilog && \
@@ -47,6 +49,7 @@ RUN apt install --assume-yes --no-install-recommends \
 # fetch riscv toolchain
 RUN git clone https://github.com/riscv/riscv-gnu-toolchain riscv-gnu-toolchain-rv32i && \
     cd riscv-gnu-toolchain-rv32i && \
+    git checkout 409b951ba6621f2f115aebddfb15ce2dd78ec24f && \
     git submodule update --init --recursive
 
 # build riscv toolchain
@@ -61,7 +64,13 @@ FROM ubuntu:20.04
 COPY --from=build "/usr/local" "/usr/local"
 COPY --from=build "/opt/riscv32i" "/opt/riscv32i"
 
+RUN apt update
+
+RUN apt install --assume-yes --no-install-recommends \
+    make libmpc-dev libmpfr-dev libgmp-dev zlib1g-dev libreadline6-dev
+
 ENV GCC_PATH=/opt/riscv32i/bin
+ENV PATH="${PATH}:${GCC_PATH}"
 ENV DV_ROOT=/dv_root
 
 WORKDIR $DV_ROOT
